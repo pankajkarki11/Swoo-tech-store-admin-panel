@@ -401,7 +401,7 @@ const CartDetails = () => {
               <div>
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-1">
                   <DollarSign className="h-4 w-4 mr-2" />
-                  Total Value
+                  Total Valueee
                 </div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   ${calculateTotal().toFixed(2)}
