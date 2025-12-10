@@ -1,0 +1,461 @@
+// src/pages/ProductDetails.jsx
+import React, { useState, useEffect } from "react";
+import { useParams, Link, useOutletContext } from "react-router-dom";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
+import useApi from "../hooks/useApi";
+import {
+  ArrowLeft,
+  Edit,
+  Star,
+  Package,
+  DollarSign,
+  Tag,
+  Calendar,
+  BarChart,
+  ShoppingCart,
+} from "lucide-react";
+
+const ProductDetails = () => {
+  const { id } = useParams();
+  const { toast } = useOutletContext();
+  const api = useApi();
+
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+
+  useEffect(() => {
+    fetchProductDetails();
+  }, [id]);
+
+  const fetchProductDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await api.productAPI.getById(id);
+      setProduct(response.data);
+
+      // Fetch related products by category
+      if (response.data?.category) {
+        const relatedResponse = await api.productAPI.getByCategory(
+          response.data.category
+        );
+        // Filter out current product and limit to 4
+        const related = (relatedResponse.data || [])
+          .filter((p) => p.id !== parseInt(id))
+          .slice(0, 4);
+        setRelatedProducts(related);
+      }
+    } catch (error) {
+      toast.error("Failed to load product details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.push(
+          <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
+        );
+      } else if (i === fullStars + 1 && hasHalfStar) {
+        stars.push(
+          <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
+        );
+      } else {
+        stars.push(
+          <Star key={i} className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+        );
+      }
+    }
+
+    return stars;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <Package className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+            Product not found
+          </h3>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            The product you're looking for doesn't exist.
+          </p>
+          <div className="mt-6">
+            <Link to="/products">
+              <Button variant="primary">
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                Back to Products
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center space-x-4">
+          <Link to="/products">
+            <Button variant="outline" size="small">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Product Details
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              View and manage product information
+            </p>
+          </div>
+        </div>
+
+        <div className="flex space-x-3">
+          <Link to={`/products/edit/${id}`}>
+            <Button variant="primary">
+              <Edit className="h-5 w-5 mr-2" />
+              Edit Product
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Product info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Product Card */}
+          <Card>
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Product Image */}
+              <div className="lg:w-1/3">
+                <div className="aspect-square rounded-xl bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                  <img
+                    src={product.image}
+                    alt={product.title}
+                    className="w-full h-full object-contain p-4"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://via.placeholder.com/400?text=No+Image";
+                    }}
+                  />
+                </div>
+
+                {/* Quick Actions */}
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Button variant="outline" fullWidth>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </Button>
+                  <Button variant="primary" fullWidth>
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Buy Now
+                  </Button>
+                </div>
+              </div>
+
+              {/* Product Details */}
+              <div className="lg:w-2/3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {product.title}
+                    </h2>
+                    <div className="flex items-center mt-2 space-x-4">
+                      <Badge variant="primary">{product.category}</Badge>
+                      <div className="flex items-center">
+                        {renderStars(product.rating?.rate || 0)}
+                        <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                          {product.rating?.rate || "N/A"} (
+                          {product.rating?.count || 0} reviews)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                      ${product.price}
+                    </div>
+                    <div className="text-sm text-green-600 dark:text-green-400">
+                      In Stock
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                    Description
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {product.description}
+                  </p>
+                </div>
+
+                {/* Product Stats */}
+                <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <div className="flex items-center justify-center h-10 w-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg mb-3 mx-auto">
+                      <BarChart className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {product.rating?.count || 0}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Total Orders
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <div className="flex items-center justify-center h-10 w-10 bg-green-100 dark:bg-green-900/30 rounded-lg mb-3 mx-auto">
+                      <Star className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {product.rating?.rate || "N/A"}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Avg. Rating
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <div className="flex items-center justify-center h-10 w-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg mb-3 mx-auto">
+                      <Tag className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        #{product.id}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Product ID
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <div className="flex items-center justify-center h-10 w-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg mb-3 mx-auto">
+                      <Calendar className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        New
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Status
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Reviews */}
+          <Card>
+            <Card.Header>
+              <Card.Title>Customer Reviews</Card.Title>
+              <Card.Description>
+                What customers are saying about this product
+              </Card.Description>
+            </Card.Header>
+
+            <div className="space-y-4">
+              {product.rating?.count > 0 ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      {renderStars(product.rating.rate)}
+                      <span className="ml-2 text-lg font-bold text-gray-900 dark:text-white">
+                        {product.rating.rate}
+                      </span>
+                      <span className="ml-1 text-gray-600 dark:text-gray-400">
+                        out of 5
+                      </span>
+                    </div>
+                    <div className="text-gray-600 dark:text-gray-400">
+                      {product.rating.count} total reviews
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="text-center py-8">
+                      <Star className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        No individual reviews available
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mt-2">
+                        This is a demo product. Real reviews would appear here.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Star className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    No reviews yet
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mt-2">
+                    Be the first to review this product!
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right column - Related Products */}
+        <div className="space-y-6">
+          {/* Related Products */}
+          <Card>
+            <Card.Header>
+              <Card.Title>Related Products</Card.Title>
+              <Card.Description>
+                Similar products you might like
+              </Card.Description>
+            </Card.Header>
+
+            <div className="space-y-4">
+              {relatedProducts.length > 0 ? (
+                relatedProducts.map((relatedProduct) => (
+                  <Link
+                    key={relatedProduct.id}
+                    to={`/products/${relatedProduct.id}`}
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="h-16 w-16 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                      <img
+                        src={relatedProduct.image}
+                        alt={relatedProduct.title}
+                        className="h-full w-full object-contain p-1"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {relatedProduct.title}
+                      </p>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">
+                          ${relatedProduct.price}
+                        </span>
+                        <Badge variant="secondary" size="small">
+                          {relatedProduct.category}
+                        </Badge>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-center py-4">
+                  <Package className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    No related products found
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Quick Stats */}
+          <Card>
+            <Card.Header>
+              <Card.Title>Product Statistics</Card.Title>
+            </Card.Header>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Views Today
+                </span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  124
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Added to Cart
+                </span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  47
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Conversion Rate
+                </span>
+                <span className="font-medium text-green-600">8.2%</span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Revenue
+                </span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  $2,845
+                </span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Actions */}
+          <Card>
+            <Card.Header>
+              <Card.Title>Quick Actions</Card.Title>
+            </Card.Header>
+
+            <div className="space-y-2">
+              <Button variant="outline" fullWidth>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Product
+              </Button>
+
+              <Button variant="outline" fullWidth>
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Update Inventory
+              </Button>
+
+              <Button variant="outline" fullWidth>
+                <BarChart className="h-4 w-4 mr-2" />
+                View Analytics
+              </Button>
+
+              <Button variant="danger" fullWidth>
+                <Package className="h-4 w-4 mr-2" />
+                Delete Product
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProductDetails;
